@@ -1,0 +1,6 @@
+#/bin/bash
+
+sudo python3 npbc_monitor_logger.py &
+python3 npbc_monitor.py &
+
+exit 0

@@ -1,0 +1,420 @@
+﻿<!DOCTYPE HTML>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>NPBC-Monitor</title>
+    <!-- Bootstrap core CSS -->
+     <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css" rel="stylesheet">
+    <script type="text/javascript">
+    window.onload = function () {
+
+        // dataPoints
+        var dataPointsPower = [];
+        var dataPointsFlame = [];
+        var dataPointsTset = [];
+        var dataPointsTboiler = [];
+        var dataPointsFFWorkTime = [];
+		var dataPointsDHW = [];
+        var dataPointsMonthlyUsage = [];
+
+//        Highcharts.setOptions({
+//            global: {
+//                useUTC: true
+//            }
+//        });
+
+        var chart = new Highcharts.chart('chartContainer', {
+            title: {
+                text: null
+            },
+            time: {
+            useUTC: false
+            },
+            xAxis: {
+                type: 'datetime'
+            },
+            yAxis: [{
+                title: {
+                    text: 'Temperature (°C)'
+                },
+                min: 0
+            }, {
+                title: {
+                    text: null
+                },
+                visible: false,
+                min: 0,
+                max: 10
+            }, {
+                title: {
+                    text: null
+                },
+                visible: false,
+                min: 0,
+                max: 300
+            }],
+            legend: {
+                align: 'right',
+                verticalAlign: 'bottom',
+                borderWidth: 0
+            },
+            series: [{
+                name: 'Tset',
+                type: 'line',
+                color: 'blue',
+                shadow: {
+                    color: 'gray',
+                    width: 5,
+                    offsetX: 0,
+                    offsetY: 0
+                },
+                data: dataPointsTset
+            }, {
+                name: 'Tboiler',
+                type: 'line',
+                color: 'red',
+                shadow: {
+                    color: 'gray',
+                    width: 5,
+                    offsetX: 0,
+                    offsetY: 0
+                },
+                data: dataPointsTboiler
+            }, {
+                name: 'Flame',
+                type: 'spline',
+                yAxis: 2,
+                color: 'orange',
+                shadow: {
+                    color: 'gray',
+                    width: 5,
+                    offsetX: 0,
+                    offsetY: 0
+                },
+                data: dataPointsFlame
+            }, {
+                name: 'Power',
+                type: 'column',
+                yAxis: 1,
+                color: 'darkorange',
+                data: dataPointsPower
+            }, {
+                name: 'DHW',
+                type: 'line',
+                color: 'black',
+		shadow: {
+			color: 'gray',
+			width: 5,
+			offsetX: 0,
+			offsetY: 0,
+		},
+                data: dataPointsDHW
+            }]
+        });
+
+        var monthlyConsumptionChart = new Highcharts.chart('monthlyConsumptionChartContainer', {
+            time : {
+                useUTC: true,
+                timezoneOffset: -240
+            },
+            title: {
+                text: null,
+            },
+            xAxis: {
+                type: 'datetime'
+            },
+            yAxis: [{
+                title: {
+                    text: 'Consumption per month (kg)'
+                    },
+                    min: 0
+            }],
+            legend: {
+                align: 'right',
+                verticalAlign: 'bottom',
+                borderWidth: 0
+            },
+            series: [{
+                name: 'Monthly Consumption (kg)',
+                type: 'column',
+                color: 'black',
+                shadow: {
+                    color: 'gray',
+                    width: 5,
+                    offsetX: 0,
+                    offsetY: 0
+                },
+                data: dataPointsMonthlyUsage
+            }]
+        });
+
+        var consumptionChart = new Highcharts.chart('consumptionChartContainer', {		
+    	    time: {
+		useUTC: true,
+		timezoneOffset: -240
+	    },
+            title: {
+                text: null
+            },
+            xAxis: {
+                type: 'datetime'
+            },
+            yAxis: [{
+                title: {
+                    text: 'Consumption (kg)'
+                },
+                min: 0
+            }],
+            legend: {
+                align: 'right',
+                verticalAlign: 'bottom',
+                borderWidth: 0
+            },
+            series: [{
+                name: 'Consumption (kg)',
+                type: 'column',
+                color: 'black',
+                shadow: {
+                    color: 'gray',
+                    width: 5,
+                    offsetX: 0,
+                    offsetY: 0
+                },
+                data: dataPointsFFWorkTime
+            }]
+        });
+
+        var updateInterval = 15000;
+
+        var kgPerHour = 39;
+        var feedTime = kgPerHour / 3600;
+
+        var updateInfo = function () {
+            
+            $.getJSON("/api/getInfo", function (data) {
+                console.log("begin Info")
+                if (data == null || data.length == 0 || typeof data[0].SwVer === "undefined") {
+                    $('#spFlame').text('');
+                    $('#spPower').text('');
+                    return;
+                }
+
+                $('#spFlame').text(data[0].Flame);
+		        $('#spTBoiler').text(data[0].Tboiler);
+		        $('#spTDHW').text(data[0].DHW);
+                $('#spCHpump').text(data[0].CHPump==1?"ON":"OFF");
+				$('#spFan').text(data[0].Fan);
+                $('#spTset').text(data[0].Tset);
+				
+
+                var power = '';
+                switch (data[0].Power) {
+                    case 0: power = ''; break;
+                    case 1: power = 'Suspend'; break;
+                    case 2: power = 'Power 1'; break;
+                    case 3: power = 'Power 2'; break;
+                    case 4: power = 'Power 3'; break;
+                };
+
+                var status = '';
+                switch (data[0].Status) {
+                    case 0: status = 'Idle'; break;
+                    case 1: status = 'Fan Cleaning'; break;
+                    case 2: status = 'Cleaner'; break;
+                    case 3: status = 'Wait'; break;
+                    case 4: status = 'Loading'; break;
+                    case 5: status = 'Heating'; break;
+                    case 6: status = 'Ignition1'; break;
+                    case 7: status = 'Ignition2'; break;
+                    case 8: status = 'Unfolding'; break;
+                    case 9: status = 'Burning'; break;
+                    case 10: status = 'Extinction'; break;
+                };
+				
+				var state = '';
+				  switch (data[0].State) {
+                    case 0: state = 'CHPriority'; break;
+                    case 1: state = 'DHWPriority'; break;
+                    case 2: state = 'ParallelPumps'; break;
+                    case 3: state = 'SummerMode'; break;
+                };
+				
+				var mode = '';
+				  switch (data[0].Mode) {
+                    case 0: mode = 'StandBy'; break;
+                    case 1: mode = 'Auto'; break;
+                    case 2: mode = 'Timer'; break;
+                };
+
+                $('#Mode').val(data[0].Mode);
+                $('#Priority').val(data[0].State);
+				$('#spState').text(state);
+                $('#spPower').text(status + (power.length > 0 ? " / " : "") + power);
+				
+				$('#spMode').text(mode);
+
+                console.log("end Info")      
+            });   
+
+            var ts;
+
+            if (dataPointsPower != null & dataPointsPower.length > 0) {
+                ts = dataPointsPower[dataPointsPower.length - 1][0] / 1000;
+            }else {
+                ts = "null"; 
+            }
+                       
+            $.getJSON("/api/getStats",  {timestamp: ts } ).done( function (data) {
+                    console.log("begin getStats");
+                    // Do not clean, just update with new data
+                    //dataPointsPower.length = 0;
+                    //dataPointsFlame.length = 0;
+                    //dataPointsTset.length = 0;
+                    //dataPointsTboiler.length = 0;
+                    //dataPointsDHW.length = 0;
+                    
+                    // TODO: think how to shift these
+                    if(data.length > dataPointsPower.length) {
+                        for (i = 0; i < data.length; i++) {
+                            dataPointsPower.shift();
+                            dataPointsFlame.shift();
+                            dataPointsTset.shift();
+                            dataPointsTboiler.shift();
+                            dataPointsDHW.shift();
+                        }
+                    }                    
+
+                    $.each(data, function (key, value) {                          
+                        dataPointsPower.push([ moment(value.Date).valueOf(), value.Power - 1 ]);                        
+                        dataPointsFlame.push([ moment(value.Date).valueOf(), value.Flame ]);                        
+                        dataPointsTset.push([ moment(value.Date).valueOf(), value.Tset ]);                        
+                        dataPointsTboiler.push([ moment(value.Date).valueOf(), value.Tboiler ]);                        
+                        dataPointsDHW.push([ moment(value.Date).valueOf(), value.DHW ]);
+                    });
+
+                    chart.series[0].setData(dataPointsTset, false);
+                    chart.series[1].setData(dataPointsTboiler, false);
+                    chart.series[2].setData(dataPointsFlame, false);
+                    chart.series[3].setData(dataPointsPower, false);
+                    chart.series[4].setData(dataPointsDHW, false);
+                    chart.redraw();
+
+                    $.getJSON("/api/getConsumptionStats", function (data) {
+                    dataPointsFFWorkTime.length = 0;
+
+                    $.each(data, function (key, value) {
+                        dataPointsFFWorkTime.push([ Date.parse(value.Timestamp), (Math.round(value.FFWorkTime * feedTime * 100) / 100) ]);
+                    });
+
+                    if (dataPointsFFWorkTime.length > 0) {
+                        $('#spConsumption').text(dataPointsFFWorkTime[dataPointsFFWorkTime.length - 1][1] + ' kg / 24h');
+                        dataPointsFFWorkTime.pop();
+                    }
+
+                    consumptionChart.series[0].setData(dataPointsFFWorkTime, false);
+                    consumptionChart.redraw();
+                    });
+                });        
+        };
+
+        $.getJSON("/api/getConsumptionByMonth", function(data){
+            dataPointsMonthlyUsage.length = 0;
+        
+            $.each(data, function(key, value) {
+                dataPointsMonthlyUsage.push([Date.parse(value.yr_mon), Math.round (value.FFWork * feedTime )]);
+            });
+                
+            monthlyConsumptionChart.series[0].setData(dataPointsMonthlyUsage, false);
+            monthlyConsumptionChart.redraw();
+        });
+
+        updateInfo();        
+
+        // update chart after specified interval
+        setInterval(function () { updateInfo() }, updateInterval);
+    }
+    </script>
+</head>
+<body>
+    <!-- Nav tabs -->
+    <ul class="nav nav-tabs" role="tablist">
+        <li class="active"><a href="#home" role="tab" data-toggle="tab">Home</a></li>
+    </ul>
+
+    <!-- Tab panes -->
+    <div class="tab-content">
+        <div class="tab-pane active" id="home">
+            <div class="container-fluid" style="padding-top:10px">
+                <div class="row">
+                    <div class="col-sm-3">
+                        <div class="panel panel-default">
+                            <div class="panel-heading">Current state</div>
+                            <div class="panel-body">
+                                <div class="row">
+								 <div class="col">
+                                        <button type="button" class="btn btn-default btn-md btn-block" style="text-align:left; padding-left:20px">Mode:  <span id="spMode" style="padding-left:10px"></span></button>
+                                    </div>
+                                    <div class="col">
+                                        <button type="button" class="btn btn-default btn-md btn-block" style="text-align:left; padding-left:20px">Flame: <span id="spFlame" style="padding-left:10px"> </span></button>
+                                    </div>
+                                    <div class="col">
+                                        <button type="button" class="btn btn-default btn-md btn-block" style="text-align:left; padding-left:20px">Tset: <span id="spTset" style="padding-left:10px"></span></button>
+                                    </div>
+				    <div class="col">
+                                        <button type="button" class="btn btn-default btn-md btn-block" style="text-align:left; padding-left:20px">TBoiler:  <span id="spTBoiler" style="padding-left:10px"></span></button>
+                                    </div>
+									 <div class="col">
+                                        <button type="button" class="btn btn-default btn-md btn-block" style="text-align:left; padding-left:20px">State:  <span id="spState" style="padding-left:10px"></span></button>
+                                    </div>
+									
+                                    <div class="col">
+                                        <button type="button" class="btn btn-default btn-md btn-block" style="text-align:left; padding-left:20px">Power: <span id="spPower" style="padding-left:10px"> </span></button>
+                                    </div>
+			    	    <div class="col">
+					<button type="button" class="btn btn-default btn-md btn-block" style="text-align:left; padding-left:20px">TDHW: <span id="spTDHW" style="padding-left:10"></span></button>
+				    </div>
+                                    <div class="col">
+                                        <button type="button" class="btn btn-default btn-md btn-block" style="text-align:left; padding-left:20px">Consumption: <span id="spConsumption" style="padding-left:10px">0.00 kg / 24h</span></button>
+                                    </div>
+									<div class="col">
+                                        <button type="button" class="btn btn-default btn-md btn-block" style="text-align:left; padding-left:20px">CHpump: <span id="spCHpump" style="padding-left:10px"></span></button>
+                                    </div>
+									<div class="col">
+                                        <button type="button" class="btn btn-default btn-md btn-block" style="text-align:left; padding-left:20px">Fan: <span id="spFan" style="padding-left:10px"></span></button>
+                                    </div>
+                                    
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-sm-9">
+                        <div class="panel panel-default">
+                            <div class="panel-heading">Last 24 hours</div>
+                            <div class="panel-body">
+                                <div id="chartContainer" style="height: 400px; width: 100%;"></div>
+                            </div>
+                        </div>
+                        <div class="panel panel-default">
+                            <div class="panel-heading">Consumption</div>
+                            <div class="panel-body">
+                                <div id="consumptionChartContainer" style="height: 200px; width: 100%;"></div>
+                            </div>
+                        </div>
+                        <div class="panel panel-default">
+                            <div class="panel-heading">Monthly Consumption</div>
+                            <div class="panel-body">
+                                <div id="monthlyConsumptionChartContainer" style="height: 200px; width: 100%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://momentjs.com/downloads/moment.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.1.1.min.js"></script>
+    <script src="https://code.highcharts.com/highcharts.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+</body>
+</html>
